@@ -61,6 +61,9 @@ public class IdpCryptoFactoryPbeTest extends Assertion {
     @Test
     public void testGetInstance() {
         assertNotNull(IdpCryptoFactory.getInstance());
+        for (int i = 0; i < TestSalt.length; i++) {
+            System.out.println(String.format("%02X ", TestSalt[i]));
+        }
     }
 
     @Test

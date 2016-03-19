@@ -42,6 +42,10 @@ public class IdpCryptoFactory {
 
     }
 
+    public Key getKey() {
+        return key;
+    }
+
     public static IdpCryptoFactory getInstance() {
         return new IdpCryptoFactory();
     }
