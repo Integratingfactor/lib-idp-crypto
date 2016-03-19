@@ -3,23 +3,28 @@ package com.integratingfactor.crypto.lib.factory.specs;
 import java.io.Serializable;
 
 /**
- * Definition class for Secret Key used with IDP key vault service
+ * Definition class for password based encryption key used with IDP key vault
+ * service
  * 
  * @author gnulib
  *
  */
-public class IdpSecretKeySpec implements Serializable {
+public class IdpPbeKeySpec implements Serializable {
 
     /**
      * 
      */
-    private static final long serialVersionUID = -998877145232728690L;
+    private static final long serialVersionUID = 6473321249158248421L;
 
     String encryptionAlgorithm;
 
     String keyAlgorithm;
 
-    String key;
+    byte[] salt;
+
+    Integer derivationCount;
+
+    Integer keySize;
 
     Integer version;
 
@@ -39,12 +44,28 @@ public class IdpSecretKeySpec implements Serializable {
         this.keyAlgorithm = keyAlgorithm;
     }
 
-    public String getKey() {
-        return key;
+    public byte[] getSalt() {
+        return salt;
     }
 
-    public void setKey(String key) {
-        this.key = key;
+    public void setSalt(byte[] salt) {
+        this.salt = salt;
+    }
+
+    public Integer getDerivationCount() {
+        return derivationCount;
+    }
+
+    public void setDerivationCount(Integer derivationCount) {
+        this.derivationCount = derivationCount;
+    }
+
+    public Integer getKeySize() {
+        return keySize;
+    }
+
+    public void setKeySize(Integer keySize) {
+        this.keySize = keySize;
     }
 
     public Integer getVersion() {

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
 
 import javax.crypto.BadPaddingException;
@@ -12,8 +13,6 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 
-import org.springframework.util.Base64Utils;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 import org.testng.asserts.Assertion;
 
@@ -21,9 +20,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.integratingfactor.crypto.lib.factory.model.IdpDecrypted;
 import com.integratingfactor.crypto.lib.factory.model.IdpEncrypted;
-import com.integratingfactor.crypto.lib.factory.specs.IdpSecretKeySpec;
+import com.integratingfactor.crypto.lib.factory.specs.IdpPbeKeySpec;
 
-public class IdpCryptoFactoryTest extends Assertion {
+public class IdpCryptoFactoryPbeTest extends Assertion {
 
     ObjectMapper mapper = new ObjectMapper();
 
@@ -31,23 +30,31 @@ public class IdpCryptoFactoryTest extends Assertion {
 
     public static String TestKeyGenerationAlgorithm = "AES";
 
+    public static byte[] TestSalt = new byte[8];
+
+    static {
+        new SecureRandom().nextBytes(TestSalt);
+    }
+
     public static Integer TestKeyVersion = 1;
 
     public static String TestPlainText = "*{ a secret }*";
+
+    public static char[] TestPassPhrase = "this.is.a.password".toCharArray();
 
     public static SecretKey testSecretKey() throws NoSuchAlgorithmException {
         KeyGenerator keygen = KeyGenerator.getInstance(TestKeyGenerationAlgorithm);
         return keygen.generateKey();
     }
 
-    public static IdpSecretKeySpec testIdpSecretKeySpec() throws NoSuchAlgorithmException, InvalidKeySpecException {
-        SecretKey key = IdpCryptoFactoryTest.testSecretKey();
-        IdpSecretKeySpec specs = new IdpSecretKeySpec();
+    public static IdpPbeKeySpec testIdpPbeKeySpec() throws NoSuchAlgorithmException, InvalidKeySpecException {
+        IdpPbeKeySpec specs = new IdpPbeKeySpec();
         specs.setEncryptionAlgorithm(TestEncryptionAlgorithm);
-        specs.setKeyAlgorithm(key.getAlgorithm());
+        specs.setKeyAlgorithm(TestKeyGenerationAlgorithm);
         specs.setVersion(TestKeyVersion);
-        specs.setKey(Base64Utils.encodeToString(key.getEncoded()));
-        Assert.assertEquals(key.getEncoded(), Base64Utils.decodeFromString(specs.getKey()));
+        specs.setSalt(TestSalt);
+        specs.setKeySize(128);
+        specs.setDerivationCount(65536);
         return specs;
     }
 
@@ -63,11 +70,11 @@ public class IdpCryptoFactoryTest extends Assertion {
         IdpCryptoFactory crypto = IdpCryptoFactory.getInstance();
 
         // get test encryption key
-        IdpSecretKeySpec spec = IdpCryptoFactoryTest.testIdpSecretKeySpec();
+        IdpPbeKeySpec spec = IdpCryptoFactoryPbeTest.testIdpPbeKeySpec();
         System.out.println("Got key specs: " + mapper.writeValueAsString(spec));
 
         // initialize factory instance with key definition
-        crypto.init(spec);
+        crypto.init(spec, TestPassPhrase);
         System.out.println("Initialized cipher: " + mapper.writeValueAsString(crypto.cipher));
         System.out.println("Initialized key: " + mapper.writeValueAsString(crypto.key));
 
@@ -84,7 +91,7 @@ public class IdpCryptoFactoryTest extends Assertion {
         IdpCryptoFactory crypto = IdpCryptoFactory.getInstance();
 
         // initialize instance with IDP key definition
-        crypto.init(IdpCryptoFactoryTest.testIdpSecretKeySpec());
+        crypto.init(IdpCryptoFactoryPbeTest.testIdpPbeKeySpec(), TestPassPhrase);
 
         // run encryption of data
         IdpEncrypted encrypted = crypto.encrypt(TestPlainText);
@@ -104,7 +111,7 @@ public class IdpCryptoFactoryTest extends Assertion {
         IdpCryptoFactory crypto = IdpCryptoFactory.getInstance();
 
         // initialize instance with IDP key definition
-        crypto.init(IdpCryptoFactoryTest.testIdpSecretKeySpec());
+        crypto.init(IdpCryptoFactoryPbeTest.testIdpPbeKeySpec(), TestPassPhrase);
 
         // run an encryption, and then decrypt
         IdpDecrypted<String> decrypted = crypto.decrypt(crypto.encrypt(TestPlainText));
