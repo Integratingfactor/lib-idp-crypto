@@ -20,6 +20,7 @@ import com.integratingfactor.crypto.lib.factory.exceptions.IdpDecryptionExceptio
 import com.integratingfactor.crypto.lib.factory.exceptions.IdpEncryptionException;
 import com.integratingfactor.crypto.lib.factory.model.IdpDecrypted;
 import com.integratingfactor.crypto.lib.factory.model.IdpEncrypted;
+import com.integratingfactor.crypto.lib.factory.model.IdpWrappedKeySpec;
 import com.integratingfactor.crypto.lib.factory.specs.IdpPbeKeySpec;
 import com.integratingfactor.crypto.lib.factory.specs.IdpSecretKeySpec;
 
@@ -119,6 +120,31 @@ public class IdpCryptoFactory {
         return encrypted;
     }
 
+    public IdpWrappedKeySpec wrap(IdpSecretKeySpec spec) {
+        // initialize cipher with key spec in key wrap mode
+        try {
+            cipher.init(Cipher.WRAP_MODE, key);
+        } catch (InvalidKeyException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            throw new IdpCryptoInitializationException("Invalid secret key " + key);
+        }
+        IdpWrappedKeySpec wrappedKeySpec = new IdpWrappedKeySpec();
+        wrappedKeySpec.setIv(cipher.getIV());
+        wrappedKeySpec.setEncryptionAlgorithm(spec.getEncryptionAlgorithm());
+        wrappedKeySpec.setKeyAlgorithm(spec.getKeyAlgorithm());
+        wrappedKeySpec.setVersion(spec.getVersion());
+        wrappedKeySpec.setKeyType(Cipher.SECRET_KEY);
+        try {
+            wrappedKeySpec.setKey(cipher
+                    .wrap(new SecretKeySpec(Base64Utils.decodeFromString(spec.getKey()), spec.getKeyAlgorithm())));
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new IdpEncryptionException("wrapping key failed " + e.getMessage());
+        }
+        return wrappedKeySpec;
+    }
+
     private int copyBytes(byte[] from, byte[] to, int toStart) {
         for (int i = toStart; i < toStart + from.length; i++) {
             to[i] = from[i - toStart];
@@ -179,5 +205,33 @@ public class IdpCryptoFactory {
             throw new IdpDecryptionException("decryption failed " + e.getMessage());
         }
         return decrypted;
+    }
+
+    public IdpSecretKeySpec unwrap(IdpWrappedKeySpec wrappedKeySpec) {
+        // initialize cipher with key and IV in unwrap mode
+        try {
+            cipher.init(Cipher.UNWRAP_MODE, key, new IvParameterSpec(wrappedKeySpec.getIv()));
+        } catch (InvalidKeyException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            throw new IdpCryptoInitializationException("Invalid secret key " + key);
+        } catch (InvalidAlgorithmParameterException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            throw new IdpCryptoInitializationException("Invalid key algorithm " + e.getMessage());
+        }
+        IdpSecretKeySpec unwrappedKeySpec = new IdpSecretKeySpec();
+        unwrappedKeySpec.setEncryptionAlgorithm(wrappedKeySpec.getEncryptionAlgorithm());
+        unwrappedKeySpec.setKeyAlgorithm(wrappedKeySpec.getKeyAlgorithm());
+        unwrappedKeySpec.setVersion(wrappedKeySpec.getVersion());
+        try {
+            unwrappedKeySpec.setKey(Base64Utils.encodeToString(cipher
+                    .unwrap(wrappedKeySpec.getKey(), wrappedKeySpec.getKeyAlgorithm(), wrappedKeySpec.getKeyType())
+                            .getEncoded()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new IdpDecryptionException("unwrapping failed " + e.getMessage());
+        }
+        return unwrappedKeySpec;
     }
 }
