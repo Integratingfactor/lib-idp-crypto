@@ -6,6 +6,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
+import java.util.UUID;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -21,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.integratingfactor.crypto.lib.factory.model.IdpDecrypted;
 import com.integratingfactor.crypto.lib.factory.model.IdpEncrypted;
 import com.integratingfactor.crypto.lib.factory.specs.IdpPbeKeySpec;
+import com.integratingfactor.crypto.lib.factory.specs.IdpSecretKeySpec;
 
 public class IdpCryptoFactoryPbeTest extends Assertion {
 
@@ -122,5 +124,42 @@ public class IdpCryptoFactoryPbeTest extends Assertion {
 
         // validated that we got what we encrypted
         assertEquals(decrypted.getData(), TestPlainText);
+    }
+
+    @Test
+    public void testVeryLongDataSetOperation()
+            throws NoSuchAlgorithmException, InvalidKeySpecException, JsonProcessingException {
+        String[] dataSet = { UUID.randomUUID().toString(), UUID.randomUUID().toString(), "a random data string" };
+        // get an instance of the factory class
+        IdpCryptoFactory crypto = IdpCryptoFactory.getInstance();
+
+        // initialize instance with IDP key definition
+        crypto.init(IdpCryptoFactoryPbeTest.testIdpPbeKeySpec(), TestPassPhrase);
+
+        // run an encryption, and then decrypt
+        IdpDecrypted<String[]> decrypted = crypto.decrypt(crypto.encrypt(dataSet));
+        System.out.println("Decrypted: " + mapper.writeValueAsString(decrypted));
+
+        // validated that we got what we encrypted
+        assertEquals(decrypted.getData(), dataSet);
+    }
+
+    @Test
+    public void testKeySpecOperation()
+            throws NoSuchAlgorithmException, InvalidKeySpecException, JsonProcessingException {
+        IdpSecretKeySpec keySpec = IdpCryptoFactoryTest.testIdpSecretKeySpec();
+
+        // get an instance of the factory class
+        IdpCryptoFactory crypto = IdpCryptoFactory.getInstance();
+
+        // initialize instance with IDP key definition
+        crypto.init(IdpCryptoFactoryPbeTest.testIdpPbeKeySpec(), TestPassPhrase);
+
+        // run an encryption, and then decrypt
+        IdpDecrypted<IdpSecretKeySpec> decrypted = crypto.decrypt(crypto.encrypt(keySpec));
+        System.out.println("Decrypted: " + mapper.writeValueAsString(decrypted));
+
+        // validated that we got what we encrypted
+        assertEquals(decrypted.getData().getKey(), keySpec.getKey());
     }
 }

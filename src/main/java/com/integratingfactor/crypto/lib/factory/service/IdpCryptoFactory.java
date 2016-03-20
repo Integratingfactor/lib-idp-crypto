@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.Key;
+import java.util.Arrays;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKeyFactory;
@@ -50,6 +51,53 @@ public class IdpCryptoFactory {
         return new IdpCryptoFactory();
     }
 
+    public <T extends Serializable> IdpEncrypted encryptBlocks(T data) {
+        // initialize cipher with key spec in encryption mode
+        try {
+            cipher.init(Cipher.ENCRYPT_MODE, key);
+        } catch (InvalidKeyException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            throw new IdpCryptoInitializationException("Invalid secret key " + key);
+        }
+        IdpEncrypted encrypted = new IdpEncrypted();
+        encrypted.setIv(cipher.getIV());
+        encrypted.setKeyVersion(version);
+        try {
+            if (cipher.getBlockSize() > 0) {
+                // need to encrypt block size bytes at a time
+                byte[] txt = SerializationUtils.serialize(data);
+                int blockSize = cipher.getBlockSize();
+                int currTxt = 0;
+                int currTxtSe = 0;
+                // create a cipher text buffer based on estimated number of
+                // blocks multiplied by estimated output size for each block
+                // encryption
+                byte[] txtSe = new byte[(cipher.getOutputSize(blockSize) * (1 + (txt.length / blockSize)))];
+                // walk through intermediate blocks, when plain text is longer
+                // than block size
+                for (; currTxt < txt.length - blockSize; currTxt += blockSize) {
+                    // encrypt intermediate block and copy into cipher text
+                    // buffer
+                    currTxtSe = copyBytes(cipher.update(txt, currTxt, blockSize), txtSe, currTxtSe);
+                }
+                // encrypt remaining bytes (after all intermediate blocks have
+                // been encrypted) and copy into cipher text buffer
+                currTxtSe = copyBytes(cipher.doFinal(Arrays.copyOfRange(txt, currTxt, txt.length - 1)), txtSe,
+                        currTxtSe);
+                // need to save exact number of bytes, so that they can be
+                // de-serialized later
+                encrypted.setCipherText(Arrays.copyOfRange(txtSe, 0, currTxtSe - 1));
+            } else {
+                throw new IdpEncryptionException("unsupported alogrithm type");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new IdpEncryptionException("encryption failed " + e.getMessage());
+        }
+        return encrypted;
+    }
+
     public <T extends Serializable> IdpEncrypted encrypt(T data) {
         // initialize cipher with key spec in encryption mode
         try {
@@ -69,6 +117,13 @@ public class IdpCryptoFactory {
             throw new IdpEncryptionException("encryption failed " + e.getMessage());
         }
         return encrypted;
+    }
+
+    private int copyBytes(byte[] from, byte[] to, int toStart) {
+        for (int i = toStart; i < toStart + from.length; i++) {
+            to[i] = from[i - toStart];
+        }
+        return toStart + from.length;
     }
 
     public void init(IdpSecretKeySpec spec) {
