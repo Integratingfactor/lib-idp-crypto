@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.integratingfactor.crypto</groupId>
   <artifactId>lib-idp-crypto</artifactId>
-  <version>0.0.3-SNAPSHOT</version>
+  <version>0.0.4-SNAPSHOT</version>
   <name>Integratingfactor Encryption Service Library</name>
   <description>Integratingfactor Encryption Service Library</description>
   <properties>
